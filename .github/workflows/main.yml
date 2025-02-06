@@ -1,0 +1,52 @@
+name: Build OPN Image
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-opn-image:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v3
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake clang python3 python3-pip git \
+            libeigen3-dev libopencv-dev libboost-all-dev \
+            libsdl2-dev libglew-dev libfreetype6-dev \
+            qtbase5-dev qtchooser qt5-qmake qtbase5-dev-tools \
+            ccache rsync
+
+      - name: Cache Dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/bhuman-deps
+          key: bhuman-${{ runner.os }}-${{ hashFiles('**/CMakeLists.txt') }}
+
+      - name: Clone B-Human Code
+        run: |
+          git clone --recursive https://github.com/bhuman/BHumanCodeRelease.git bhuman
+          cd bhuman
+          ./Scripts/setup.sh  # Install additional dependencies
+          ./Scripts/cmake.sh   # Run CMake configuration
+
+      - name: Build OpenNao Image
+        run: |
+          cd bhuman
+          ./Make/Make OPNAO
+
+      - name: Upload OPN Image
+        uses: actions/upload-artifact@v3
+        with:
+          name: opn-image
+          path: bhuman/Build/OpnNao/*.tar.gz
